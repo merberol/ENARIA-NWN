@@ -1,14 +1,10 @@
-//::///////////////////////////////////////////////
-//:: Chromatic Orb
-//:: [rm_sp_chromorb.nss]
-//:://////////////////////////////////////////////
-/* Description from baldurs gate.
-This spell causes a 2-ft. diameter sphere to appear in the caster's hand. When thrown, 
-the sphere heads unerringly to its target. 
-The effect the orb has upon the target varies with the level of the caster. 
-Each orb will do damage to the target against which there is no save and an effect 
-against which the target must save vs. Spell with a +6 bonus:
-
+////////////////////////////////////////////////////////////////////////////////
+//::                                             :://///////////////////////////
+//::  Created by Charlie Simonsson feb 16 2022   :://///////////////////////////
+//::                                             :://///////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+/*
+    This spell causes a 2-ft. diameter sphere to appear in the caster's hand. When thrown, the sphere heads unerringly to its target. The effect the orb has upon the target varies with the level of the caster. Each orb will do damage to the target against which there is no save and an effect against which the target must save vs. Spell with a +6 bonus:
 1st Level: 1d4 damage and blinds the target for 1 round.
 2nd Level: 1d4 damage and inflicts pain (-1 penalty to Strength, Dexterity, AC, and THAC0) upon the victim.
 3rd Level: 1d6 damage and burns the victim for an additional 1d8 damage.
@@ -20,13 +16,6 @@ against which the target must save vs. Spell with a +6 bonus:
 12th Level: 2d8 acid damage and instantly kills the victim.
 NOTE: The victim saves vs. Spell with a +6 bonus against all the effects and gets no save against the damage.
 */
-////////////////////////////////////////////////////////////////////////////////
-//::                                             :://///////////////////////////
-//::  Created by Charlie Simonsson feb 16 2022   :://///////////////////////////
-//::                                             :://///////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-
-
 #include "x2_inc_spellhook"
 #include "rm_sp_inc"
 
@@ -52,6 +41,7 @@ void main()
     SignalEvent(oTarget, EventSpellCastAt(OBJECT_SELF, 843));
     effect eDam;
     effect eVis;
+    float fDur = RoundsToSeconds(1);
     switch(nCasterLevel)
     {
      case 1:
@@ -80,7 +70,7 @@ void main()
      }
      case 3:
      {
-        eDam = EffectDamage(d6(1),DAMAGE_TYPE_ACID,DAMAGE_POWER_ENERGY);
+        eDam = EffectDamage(d6(1)+d8(1),DAMAGE_TYPE_ACID,DAMAGE_POWER_ENERGY);
         break;
      }
      case 4:
@@ -91,16 +81,30 @@ void main()
             eVis = EffectVisualEffect(VFX_IMP_BLIND_DEAF_M);
             eDur = EffectLinkEffects(eBlind, eDur);
         }
+        fDur = TurnsToSeconds(1);
         eDam = EffectDamage(d6(1),DAMAGE_TYPE_ACID,DAMAGE_POWER_ENERGY);
         break;
      }
      case 5:
      {
+        if(!MyResistSpell(oCaster, oTarget ))   // for proper 2e rules this save shuld be at a 6 bonus.
+        {
+            effect eBlind = EffectStunned();
+            eVis = EffectVisualEffect(VFX_IMP_BLIND_DEAF_M);
+            eDur = EffectLinkEffects(eBlind, eDur);
+        }
+        fDur = RoundsToSeconds(3);
         eDam = EffectDamage(d8(1),DAMAGE_TYPE_ACID,DAMAGE_POWER_ENERGY);
         break;
      }
      case 6:
      {
+        if(!MyResistSpell(oCaster, oTarget ))   // for proper 2e rules this save shuld be at a 6 bonus.
+        {
+            effect eBlind = EffectAttackDecrease(6);
+            eVis = EffectVisualEffect(VFX_IMP_BLIND_DEAF_M);
+            eDur = EffectLinkEffects(eBlind, eDur);
+        }
         eDam = EffectDamage(d8(1),DAMAGE_TYPE_ACID,DAMAGE_POWER_ENERGY);
         break;
      }
@@ -108,33 +112,47 @@ void main()
      case 8:
      case 9:
      {
+        if(!MyResistSpell(oCaster, oTarget ))   // for proper 2e rules this save shuld be at a 6 bonus.
+        {
+            effect eBlind = EffectAttackDecrease(6);
+            eVis = EffectVisualEffect(VFX_IMP_BLIND_DEAF_M);
+            eDur = EffectLinkEffects(eBlind, eDur);
+        }
+        fDur = TurnsToSeconds(2);
         eDam = EffectDamage(d10(1),DAMAGE_TYPE_ACID,DAMAGE_POWER_ENERGY);
-
         break;
      }
      case 10:
      case 11:
      {
         eDam = EffectDamage(d12(1),DAMAGE_TYPE_ACID,DAMAGE_POWER_ENERGY);
+        if(!MyResistSpell(oCaster, oTarget ))   // for proper 2e rules this save shuld be at a 6 bonus.
+        {
+            effect eBlind = EffectPetrify();
+
+            eDam = EffectLinkEffects(eBlind, eDam);
+        }
+
 
         break;
      }
      default:
      {
         eDam = EffectDamage(d8(2),DAMAGE_TYPE_ACID,DAMAGE_POWER_ENERGY);
+        if(!MyResistSpell(oCaster, oTarget ))   // for proper 2e rules this save shuld be at a 6 bonus.
+        {
+            effect eBlind = EffectDeath(TRUE);
+
+            eDam = EffectLinkEffects(eBlind, eDam);
+        }
 
         break;
      }
     }
 
-    if(nCasterLevel != 4)
-    {
-        ApplyEffectToObject(DURATION_TYPE_TEMPORARY, eDur, oTarget, RoundsToSeconds(1));
-    }
-    else
-    {
-        ApplyEffectToObject(DURATION_TYPE_TEMPORARY, eDur, oTarget, TurnsToSeconds(1));
-    }
+
+    ApplyEffectToObject(DURATION_TYPE_TEMPORARY, eDur, oTarget, TurnsToSeconds(1));
+
     ApplyEffectToObject(DURATION_TYPE_INSTANT, eVis, oTarget);
     ApplyEffectToObject(DURATION_TYPE_INSTANT, eDam, oTarget);
     ApplyEffectToObject(DURATION_TYPE_INSTANT, eProjectile, oTarget);
